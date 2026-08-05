@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAM2 Geospatial Image Segmentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="app-title">🛰️ SAM2 Geospatial Segmentation</h1>
+                <p class="app-subtitle">Satellite Image Object Detection & Visualization</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Left Panel: Upload & Settings -->
+            <div class="panel left-panel">
+                <div class="panel-header">
+                    <h2>📋 Detection Settings</h2>
+                </div>
+
+                <form id="detectionForm" class="detection-form">
+                    <!-- File Upload Section -->
+                    <div class="form-section">
+                        <label class="section-title">Image Upload</label>
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p class="upload-text">Drag and drop your TIF file here</p>
+                            <p class="upload-subtext">or click to browse</p>
+                            <input type="file" id="fileInput" accept=".tif,.tiff,.png,.jpg,.jpeg" hidden>
+                        </div>
+                        <div id="fileName" class="file-name"></div>
+                    </div>
+
+                    <!-- Prompt Section -->
+                    <div class="form-section">
+                        <label for="promptInput" class="section-title">Detection Prompt *</label>
+                        <input 
+                            type="text" 
+                            id="promptInput" 
+                            class="form-input" 
+                            placeholder="e.g., building, car, pole, person"
+                            value="building"
+                            required
+                        >
+                        <div class="prompt-suggestions">
+                            <button type="button" class="suggestion-btn" data-prompt="building">Building</button>
+                            <button type="button" class="suggestion-btn" data-prompt="car">Car</button>
+                            <button type="button" class="suggestion-btn" data-prompt="pole">Pole</button>
+                            <button type="button" class="suggestion-btn" data-prompt="person">Person</button>
+                        </div>
+                    </div>
+
+                    <!-- Model Settings -->
+                    <div class="form-section">
+                        <label class="section-title">Model Settings</label>
+                        
+                        <div class="form-group">
+                            <label for="modelId" class="form-label">Model ID</label>
+                            <input 
+                                type="text" 
+                                id="modelId" 
+                                class="form-input" 
+                                value="facebook/sam3"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="backend" class="form-label">Backend</label>
+                            <select id="backend" class="form-select">
+                                <option value="transformers">Transformers</option>
+                                <option value="meta">Meta</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="outputFormat" class="form-label">Output Format</label>
+                            <select id="outputFormat" class="form-select">
+                                <option value="png">PNG Image</option>
+                                <option value="tif">TIF Image</option>
+                                <option value="json">JSON (Coordinates)</option>
+                                <option value="geojson">GeoJSON</option>
+                                <option value="geotiff">GeoTIFF</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Detection Parameters -->
+                    <div class="form-section">
+                        <label class="section-title">Detection Parameters</label>
+                        
+                        <div class="form-group">
+                            <label for="confidenceThreshold" class="form-label">
+                                Confidence Threshold: <span id="confidenceValue">0.5</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                id="confidenceThreshold" 
+                                class="form-range" 
+                                min="0" 
+                                max="1" 
+                                step="0.1" 
+                                value="0.5"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="minSize" class="form-label">Minimum Size (pixels)</label>
+                            <input 
+                                type="number" 
+                                id="minSize" 
+                                class="form-input" 
+                                value="10"
+                                min="0"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="maxSize" class="form-label">Maximum Size (pixels)</label>
+                            <input 
+                                type="number" 
+                                id="maxSize" 
+                                class="form-input" 
+                                value="0"
+                                min="0"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submitBtn" class="btn btn-primary btn-large">
+                        <span class="btn-text">🚀 Run Detection</span>
+                        <span class="btn-loader" style="display: none;">
+                            <svg class="spinner" viewBox="0 0 50 50">
+                                <circle cx="25" cy="25" r="20" fill="none" stroke-width="3"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="panel right-panel">
+                <div class="panel-header">
+                    <h2>📊 Results</h2>
+                </div>
+
+                <!-- Status Message -->
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+
+                <!-- Results Container -->
+                <div id="resultsContainer" class="results-container">
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <path d="M21 15l-5-5L5 21"></path>
+                        </svg>
+                        <p class="empty-text">Upload an image and click "Run Detection"</p>
+                    </div>
+                </div>
+
+                <!-- Image Display -->
+                <div id="imageDisplay" class="image-display" style="display: none;">
+                    <img id="resultImage" src="" alt="Detection Result" class="result-image">
+                </div>
+
+                <!-- Download Section -->
+                <div id="downloadSection" class="download-section" style="display: none;">
+                    <button id="downloadBtn" class="btn btn-secondary">
+                        <span>⬇️ Download Result</span>
+                    </button>
+                </div>
+
+                <!-- Statistics -->
+                <div id="statistics" class="statistics" style="display: none;">
+                    <h3 class="stats-title">📈 Detection Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-label">Total Detected</span>
+                            <span class="stat-value" id="totalDetected">0</span>
+                        </div>
+                        <div class="stat-card high-conf">
+                            <span class="stat-label">🟢 High (≥80%)</span>
+                            <span class="stat-value" id="highConf">0</span>
+                        </div>
+                        <div class="stat-card med-conf">
+                            <span class="stat-label">🟠 Medium (70-80%)</span>
+                            <span class="stat-value" id="mediumConf">0</span>
+                        </div>
+                        <div class="stat-card low-conf">
+                            <span class="stat-label">🔴 Low (<70%)</span>
+                            <span class="stat-value" id="lowConf">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>SAM2 Geospatial Segmentation • Powered by segment-geospatial</p>
+            <p>API running on <span class="api-url">http://127.0.0.1:5050</span></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
